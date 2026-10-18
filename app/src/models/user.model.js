@@ -19,10 +19,6 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    isVerfied: {
-        type: Boolean,
-        default: false,
-    },
     isAdmin: {
         type: Boolean,
         default: false,

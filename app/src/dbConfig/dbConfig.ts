@@ -8,23 +8,16 @@ export async function connect() {
         }
 
         if (!process.env.MONGO_URI) {
-            console.error('MONGO_URI is not defined in environment variables');
-            return;
+            throw new Error('MONGO_URI is not defined in environment variables (.env)');
         }
 
         await mongoose.connect(process.env.MONGO_URI);
-        const connection = mongoose.connection;
-
-        connection.on('connected', () => {
-            console.log('MongoDB connected successfully');
-        });
-
-        connection.on('error', (err) => {
-            console.error('MongoDB connection error. Please make sure MongoDB is running: ' + err);
-        });
+        console.log('MongoDB connected successfully');
 
     } catch (error) {
-        console.error('Something went wrong connecting to the database:');
-        console.error(error);
+        console.error('Something went wrong connecting to the database:', error);
+        throw error;
     }
 }
+
+export default connect;

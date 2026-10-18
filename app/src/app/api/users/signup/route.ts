@@ -19,10 +19,13 @@ export async function POST(request: NextRequest) {
         }
 
         // checking if user exists already
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({
+            $or: [{ email }, { username }],
+        });
         if (existingUser) {
+            const isEmail = existingUser.email === email;
             return NextResponse.json(
-                { error: "User already exists" },
+                { error: isEmail ? "User with this email already exists" : "Username is already taken" },
                 { status: 400 }
             );
         }
@@ -38,18 +41,44 @@ export async function POST(request: NextRequest) {
         });
 
         const savedUser = await newUser.save();
-        console.log("Saved user:", savedUser);
+
+        const sanitizedUser = {
+            id: savedUser._id,
+            username: savedUser.username,
+            email: savedUser.email,
+            isVerified: savedUser.isVerified,
+            isAdmin: savedUser.isAdmin,
+        };
 
         // send verification email
-        await sendEmail({ email, emailType: "VERIFY", userId: savedUser._id });
+        try {
+            await sendEmail({ email, emailType: "VERIFY", userId: savedUser._id });
+        } catch (emailError) {
+            console.error("Verification email failed to send:", emailError);
+            return NextResponse.json(
+                {
+                    message: "User created successfully, but failed to send verification email.",
+                    success: true,
+                    savedUser: sanitizedUser,
+                    user: sanitizedUser,
+                    emailError: emailError instanceof Error ? emailError.message : "Email error",
+                },
+                { status: 201 }
+            );
+        }
 
-        return NextResponse.json({
-            message: "User created successfully",
-            success: true,
-            savedUser,
-        });
+        return NextResponse.json(
+            {
+                message: "User created successfully",
+                success: true,
+                savedUser: sanitizedUser,
+                user: sanitizedUser,
+            },
+            { status: 201 }
+        );
 
     } catch (error: unknown) {
+        console.error("Signup API error:", error);
         return NextResponse.json(
             {
                 error: error instanceof Error

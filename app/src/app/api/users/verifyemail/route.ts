@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        
 
         const user = await User.findOne({
             verifyToken: token,
@@ -29,7 +30,6 @@ export async function POST(request: NextRequest) {
         }
 
         user.isVerified = true;
-        user.isVerfied = true;
         user.verifyToken = undefined;
         user.verifyTokenExpiry = undefined;
         await user.save();

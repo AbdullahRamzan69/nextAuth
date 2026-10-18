@@ -9,17 +9,21 @@ export async function POST(request: NextRequest) {
         await connect();
 
         const reqBody = await request.json();
-        const { email, password } = reqBody;
+        const { email, username, password } = reqBody;
 
-        if (!email || !password) {
+        const identifier = email || username;
+        if (!identifier || !password) {
             return NextResponse.json(
-                { error: "Please provide email and password" },
+                { error: "Please provide email/username and password" },
                 { status: 400 }
             );
         }
 
-        // Check if user exists
-        const user = await User.findOne({ email });
+        // Check if user exists by email or username
+        const user = await User.findOne({
+            $or: [{ email: identifier }, { username: identifier }],
+        });
+
         if (!user) {
             return NextResponse.json(
                 { error: "User does not exist" },
@@ -36,6 +40,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const tokenSecret = process.env.TOKEN_SECRET;
+        if (!tokenSecret) {
+            throw new Error("TOKEN_SECRET is not configured in environment variables");
+        }
+
         // Create token data
         const tokenData = {
             id: user._id,
@@ -44,18 +53,29 @@ export async function POST(request: NextRequest) {
         };
 
         // Create token
-        const token = jwt.sign(tokenData, process.env.TOKEN_SECRET!, {
+        const token = jwt.sign(tokenData, tokenSecret, {
             expiresIn: "1d",
         });
 
         const response = NextResponse.json({
             message: "Login successful",
             success: true,
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                isVerified: user.isVerified,
+                isAdmin: user.isAdmin,
+            },
         });
 
         response.cookies.set("token", token, {
             httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
             path: "/",
+            maxAge: 24 * 60 * 60,
         });
 
         return response;
